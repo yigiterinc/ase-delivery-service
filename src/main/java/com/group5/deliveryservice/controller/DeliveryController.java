@@ -41,52 +41,10 @@ public class DeliveryController {
     private final static int ONE_STEP_STATUS_CHANGE = -1;
 
 
-    private ResponseEntity<List<Delivery>> changeDelivery(Delivery delivery, DeliveryStatus deliveryStatus) {
-        delivery.setDeliveryStatus(deliveryStatus);
-        return ResponseEntity.ok(Arrays.asList(deliveryRepository.save(delivery)));
-    }
-
-    private ResponseEntity<List<Delivery>> changeRelatedDeliveries(Delivery delivery, Date timestamp) {
-        List<Delivery> relatedDeliveries = deliveryRepository.findAllByBoxIdAndCustomerIdAndDeliveryStatusAndIsActiveTrue(delivery.getBoxId(), delivery.getCustomerId(), DeliveryStatus.DEPOSITED);
-        for (Delivery relatedDelivery : relatedDeliveries) {
-            relatedDelivery.setDeliveryStatus(DeliveryStatus.ASSIGNED);
-            relatedDelivery.setActive(false);
-            relatedDelivery.setDelivered_at(timestamp);
-        }
-        return ResponseEntity.ok(deliveryRepository.saveAll(relatedDeliveries));
-
-    }
-
-    private ResponseEntity<List<Delivery>> updateDeliveryStatus(Delivery delivery, DeliveryStatus deliveryStatus) {
+    private void checkValidDeliveryStatus(Delivery delivery, DeliveryStatus deliveryStatus) {
+        //noinspection ComparatorResultComparison
         if (delivery.getDeliveryStatus().compareTo(deliveryStatus) != ONE_STEP_STATUS_CHANGE || !delivery.isActive())
             throw new RuntimeException("Delivery with id " + delivery.getId() + " can not be updated since new delivery status is not valid");
-
-        ResponseEntity<List<Delivery>> response;
-        Date currentTimestamp = new Date();
-        if (deliveryStatus != DeliveryStatus.DELIVERED) {
-            switch (deliveryStatus) {
-                case ASSIGNED:
-                    delivery.setAssigned_at(currentTimestamp);
-                    break;
-                case COLLECTED:
-                    delivery.setCollected_at(currentTimestamp);
-                    break;
-                case DEPOSITED:
-                    delivery.setDeposited_at(currentTimestamp);
-                    User user = userRepository.findById(delivery.getCustomerId())
-                            .orElseThrow(() -> new RuntimeException("Customer with id " + delivery.getCustomerId() + " does not exist"));
-                    emailNotificationService.sendDepositedDeliveryEmailNotification(user.getEmail(), user.getLastName());
-                    break;
-            }
-            response = changeDelivery(delivery, deliveryStatus);
-        } else {
-            response = changeRelatedDeliveries(delivery, currentTimestamp);
-            User user = userRepository.findById(delivery.getCustomerId())
-                    .orElseThrow(() -> new RuntimeException("Customer with id " + delivery.getCustomerId() + " does not exist"));
-            emailNotificationService.sendDeliveredDeliveryEmailNotification(user.getEmail(), user.getLastName());
-        }
-
-        return response;
     }
 
     public Map<String, Boolean> deleteBox(Delivery delivery) {
@@ -109,10 +67,24 @@ public class DeliveryController {
         return ResponseEntity.ok().body(delivery);
     }
 
-    @GetMapping("/deliveries")
-    public ResponseEntity<Delivery> getDeliveryByTrackingId(@RequestParam(value = "trackingId") String trackingId)
+    @GetMapping("/deliveries/active")
+    public ResponseEntity<List<Delivery>> getActiveDeliveriesByCustomerId(@RequestParam long customerId)
             throws RuntimeException {
-        Delivery delivery = deliveryRepository.findByTrackingId(trackingId)
+        List<Delivery> delivery = deliveryRepository.findAllByCustomerIdAndActiveTrue(customerId);
+        return ResponseEntity.ok().body(delivery);
+    }
+
+    @GetMapping("/deliveries/past")
+    public ResponseEntity<List<Delivery>> getPastDeliveriesByCustomerId(@RequestParam long customerId)
+            throws RuntimeException {
+        List<Delivery> delivery = deliveryRepository.findAllByCustomerIdAndActiveFalse(customerId);
+        return ResponseEntity.ok().body(delivery);
+    }
+
+    @GetMapping("/deliveries")
+    public ResponseEntity<Delivery> getDeliveryByTrackingId(@RequestParam String trackingId)
+            throws RuntimeException {
+        Delivery delivery = deliveryRepository.findByTrackingIdAndActiveTrue(trackingId)
                 .orElseThrow(() -> new RuntimeException("Delivery not found for tracking id " + trackingId));
         return ResponseEntity.ok().body(delivery);
     }
@@ -125,7 +97,7 @@ public class DeliveryController {
         Delivery delivery = new Delivery(sequenceGeneratorService.generateSequence(Delivery.SEQUENCE_NAME),
                 trackingCodeGeneratorService.generateSequence(Delivery.TRACKING_CODE_SEQUENCE_NAME), description, DeliveryStatus.ASSIGNED, true);
 
-        if (!deliveryRepository.findAllByCustomerIdNotAndBoxIdAndIsActiveTrue(customerId, boxId).isEmpty())
+        if (!deliveryRepository.findAllByCustomerIdNotAndBoxIdAndActiveTrue(customerId, boxId).isEmpty())
             throw new RuntimeException("Box with id " + boxId + " is already in use by another customer");
         if (boxRepository.findById(boxId).isPresent())
             delivery.setBoxId(boxId);
@@ -141,34 +113,63 @@ public class DeliveryController {
             delivery.setDelivererId(delivererId);
         else
             throw new RuntimeException("Deliverer with id " + delivererId + " does not exist");
+
         delivery.setAssigned_at(new Date());
         emailNotificationService.sendCreatedDeliveryNotification(customer.getEmail(), customer.getLastName(), delivery.getTrackingId());
+
         return deliveryRepository.save(delivery);
     }
 
-    @PutMapping("/deliveries/status/collected/{id}")
-    public ResponseEntity<List<Delivery>> updateDeliveryStatusCollected(@RequestParam long deliveryId) throws RuntimeException {
-        Delivery delivery = deliveryRepository.findById(deliveryId)
-                .orElseThrow(() -> new RuntimeException("Delivery not found for id " + deliveryId));
-        return updateDeliveryStatus(delivery, DeliveryStatus.COLLECTED);
+    @PutMapping("/deliveries/collected/{ids}")
+    public ResponseEntity<List<Delivery>> updateDeliveryStatusCollected(@PathVariable(value = "ids") long[] deliveryIds) throws RuntimeException {
+        List<Delivery> updatedDeliveries = new LinkedList<>();
+        Delivery delivery;
+        for (long deliveryId : deliveryIds) {
+            delivery = deliveryRepository.findById(deliveryId)
+                    .orElseThrow(() -> new RuntimeException("Delivery not found for id " + deliveryId));
+            checkValidDeliveryStatus(delivery, DeliveryStatus.COLLECTED);
+            delivery.setCollected_at(new Date());
+            delivery.setDeliveryStatus(DeliveryStatus.COLLECTED);
+            updatedDeliveries.add(delivery);
+        }
+        return ResponseEntity.ok(deliveryRepository.saveAll(updatedDeliveries));
     }
 
-    @PutMapping("/deliveries/status/deposited")
+    @PutMapping("/deliveries/deposited")
     public ResponseEntity<List<Delivery>> updateDeliveryStatusDeposited(@RequestParam long delivererId, @RequestParam long boxId) throws RuntimeException {
         User deliverer = userRepository.findById(delivererId)
                 .orElseThrow(() -> new RuntimeException("Deliverer not found for id " + delivererId));
-        Delivery delivery = deliveryRepository.findByDelivererIdAndBoxIdAndIsActiveTrue(deliverer.getId(), boxId)
-                .orElseThrow(() -> new RuntimeException("Delivery not found for deliverer id " + deliverer.getId() + " and box id " + boxId));
-        return updateDeliveryStatus(delivery, DeliveryStatus.DEPOSITED);
+        List<Delivery> deliveries = deliveryRepository.findAllByDeliveryStatusAndDelivererIdAndBoxIdAndActiveTrue(DeliveryStatus.COLLECTED, deliverer.getId(), boxId);
+        if (deliveries.isEmpty())
+            throw new RuntimeException("No delivery found for deliverer id " + deliverer.getId() + " and box id " + boxId);
+        for (Delivery delivery : deliveries) {
+            checkValidDeliveryStatus(delivery, DeliveryStatus.DEPOSITED);
+            delivery.setDeposited_at(new Date());
+            delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
+        }
+
+        User customer = userRepository.findById(deliveries.get(0).getCustomerId())
+                .orElseThrow(() -> new RuntimeException("Customer with id " + deliveries.get(0).getCustomerId() + " does not exist"));
+        emailNotificationService.sendDepositedDeliveryEmailNotification(customer.getEmail(), customer.getLastName());
+
+        return ResponseEntity.ok(deliveryRepository.saveAll(deliveries));
     }
 
-    @PutMapping("/deliveries/status/delivered")
+    @PutMapping("/deliveries/delivered")
     public ResponseEntity<List<Delivery>> updateDeliveryStatusDelivered(@RequestParam long customerId, @RequestParam long boxId) throws RuntimeException {
         User customer = userRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("Customer not found for rfid token " + customerId));
-        Delivery delivery = deliveryRepository.findByCustomerIdAndBoxIdAndIsActiveTrue(customer.getId(), boxId)
-                .orElseThrow(() -> new RuntimeException("Delivery not found for customer id " + customer.getId() + " and box id " + boxId));
-        return updateDeliveryStatus(delivery, DeliveryStatus.DELIVERED);
+                .orElseThrow(() -> new RuntimeException("Customer not found for id " + customerId));
+        List<Delivery> deliveries = deliveryRepository.findAllByDeliveryStatusAndCustomerIdAndBoxIdAndActiveTrue(DeliveryStatus.DEPOSITED, customerId, boxId);
+        if (deliveries.isEmpty())
+            throw new RuntimeException("No delivery found for customer id " + customerId + " and box id " + boxId);
+        for (Delivery delivery : deliveries) {
+            checkValidDeliveryStatus(delivery, DeliveryStatus.DELIVERED);
+            delivery.setDeliveryStatus(DeliveryStatus.DELIVERED);
+            delivery.setActive(false);
+            delivery.setDelivered_at(new Date());
+        }
+        emailNotificationService.sendDeliveredDeliveryEmailNotification(customer.getEmail(), customer.getLastName());
+        return ResponseEntity.ok(deliveryRepository.saveAll(deliveries));
     }
 
     @DeleteMapping("/deliveries/{id}")
@@ -179,13 +180,6 @@ public class DeliveryController {
         return deleteBox(delivery);
     }
 
-    @DeleteMapping("/deliveries")
-    public Map<String, Boolean> deleteDelivery(@RequestParam(value = "trackingId") String trackingId)
-            throws RuntimeException {
-        Delivery delivery = deliveryRepository.findByTrackingId(trackingId)
-                .orElseThrow(() -> new RuntimeException("Box not found for name " + trackingId));
-        return deleteBox(delivery);
-    }
 }
 
 

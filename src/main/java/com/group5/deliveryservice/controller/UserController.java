@@ -91,7 +91,7 @@ public class UserController {
     }
 
     @PutMapping("/users")
-    public ResponseEntity<User> updateUser(@RequestParam(value = "email") String email,
+    public ResponseEntity<User> updateUser(@RequestParam String email,
                                            @Valid @RequestBody User userDetails) throws RuntimeException {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found for email " + email));
@@ -107,7 +107,7 @@ public class UserController {
     }
 
     @DeleteMapping("/users")
-    public Map<String, Boolean> deleteUser(@RequestParam(value = "email") String email)
+    public Map<String, Boolean> deleteUser(@RequestParam String email)
             throws RuntimeException {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found for email " + email));

@@ -41,7 +41,7 @@ public class Delivery {
 
     private DeliveryStatus deliveryStatus;
 
-    private boolean isActive;
+    private boolean active;
 
     private Date assigned_at;
 
@@ -56,6 +56,6 @@ public class Delivery {
         this.trackingId = trackingId;
         this.description = description;
         this.deliveryStatus = deliveryStatus;
-        this.isActive = isActive;
+        this.active = isActive;
     }
 }

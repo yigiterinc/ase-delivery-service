@@ -2,6 +2,7 @@ package com.group5.deliveryservice.repository;
 
 import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
+import org.springframework.data.mongodb.repository.DeleteQuery;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,14 +11,19 @@ import java.util.Optional;
 
 @Repository
 public interface DeliveryRepository extends MongoRepository<Delivery, Long> {
-    Optional<Delivery> findByDelivererIdAndBoxIdAndIsActiveTrue(long delivererId, long boxId);
 
-    Optional<Delivery> findByCustomerIdAndBoxIdAndIsActiveTrue(long customerId, long boxId);
+    List<Delivery> findAllByDeliveryStatusAndDelivererIdAndBoxIdAndActiveTrue(DeliveryStatus deliveryStatus, long delivererId, long boxId);
 
-    Optional<Delivery> findByTrackingId(String trackingCode);
+    List<Delivery> findAllByDeliveryStatusAndCustomerIdAndBoxIdAndActiveTrue(DeliveryStatus deliveryStatus, long customerId, long boxId);
 
-    List<Delivery> findAllByCustomerIdNotAndBoxIdAndIsActiveTrue(long customerId, long boxId);
+    List<Delivery> findAllByDeliveryStatusAndDelivererId(DeliveryStatus deliveryStatus, long delivererId);
 
-    List<Delivery> findAllByBoxIdAndCustomerIdAndDeliveryStatusAndIsActiveTrue(long boxId, long userId, DeliveryStatus deliveryStatus);
+    List<Delivery> findAllByCustomerIdAndActiveTrue(long customerId);
+
+    List<Delivery> findAllByCustomerIdAndActiveFalse(long customerId);
+
+    Optional<Delivery> findByTrackingIdAndActiveTrue(String trackingId);
+
+    List<Delivery> findAllByCustomerIdNotAndBoxIdAndActiveTrue(long customerId, long boxId);
 
 }
