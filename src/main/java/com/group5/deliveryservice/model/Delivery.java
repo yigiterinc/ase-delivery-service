@@ -1,9 +1,6 @@
 package com.group5.deliveryservice.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -11,19 +8,11 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
 
-
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Document(collection = "deliveries")
 public class Delivery {
-
-    @Transient
-    public static final String SEQUENCE_NAME = "deliveries_sequence";
-
-    @Transient
-    public static final String TRACKING_CODE_SEQUENCE_NAME = "tracking_code_sequence";
 
     @Id
     private long id;
@@ -57,5 +46,11 @@ public class Delivery {
         this.description = description;
         this.deliveryStatus = deliveryStatus;
         this.active = isActive;
+    }
+
+    public Delivery(String description, DeliveryStatus deliveryStatus, boolean active) {
+        this.description = description;
+        this.deliveryStatus = deliveryStatus;
+        this.active = active;
     }
 }

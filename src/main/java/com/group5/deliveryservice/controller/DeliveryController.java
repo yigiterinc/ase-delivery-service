@@ -1,5 +1,7 @@
 package com.group5.deliveryservice.controller;
 
+import com.group5.deliveryservice.mail.MailService;
+import com.group5.deliveryservice.mail.StatusChangeMailRequest;
 import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
 import com.group5.deliveryservice.model.Role;
@@ -7,8 +9,6 @@ import com.group5.deliveryservice.model.User;
 import com.group5.deliveryservice.repository.BoxRepository;
 import com.group5.deliveryservice.repository.DeliveryRepository;
 import com.group5.deliveryservice.repository.UserRepository;
-import com.group5.deliveryservice.service.EmailNotificationService;
-import com.group5.deliveryservice.service.SequenceGeneratorService;
 import com.group5.deliveryservice.service.CodeGeneratorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -30,19 +30,14 @@ public class DeliveryController {
     private BoxRepository boxRepository;
 
     @Autowired
-    private SequenceGeneratorService sequenceGeneratorService;
-
-    @Autowired
     private CodeGeneratorService trackingCodeGeneratorService;
 
     @Autowired
-    private EmailNotificationService emailNotificationService;
+    private MailService mailService;
 
     private final static int ONE_STEP_STATUS_CHANGE = -1;
 
-
     private void checkValidDeliveryStatus(Delivery delivery, DeliveryStatus deliveryStatus) {
-        //noinspection ComparatorResultComparison
         if (delivery.getDeliveryStatus().compareTo(deliveryStatus) != ONE_STEP_STATUS_CHANGE || !delivery.isActive())
             throw new RuntimeException("Delivery with id " + delivery.getId() + " can not be updated since new delivery status is not valid");
     }
@@ -94,8 +89,7 @@ public class DeliveryController {
                                             @RequestParam long customerId,
                                             @RequestParam long delivererId,
                                             @RequestParam String description) throws RuntimeException {
-        Delivery delivery = new Delivery(sequenceGeneratorService.generateSequence(Delivery.SEQUENCE_NAME),
-                trackingCodeGeneratorService.generateSequence(Delivery.TRACKING_CODE_SEQUENCE_NAME), description, DeliveryStatus.ASSIGNED, true);
+        Delivery delivery = new Delivery(description, DeliveryStatus.CREATED, true);
 
         if (!deliveryRepository.findAllByCustomerIdNotAndBoxIdAndActiveTrue(customerId, boxId).isEmpty())
             throw new RuntimeException("Box with id " + boxId + " is already in use by another customer");
@@ -115,7 +109,8 @@ public class DeliveryController {
             throw new RuntimeException("Deliverer with id " + delivererId + " does not exist");
 
         delivery.setAssigned_at(new Date());
-        emailNotificationService.sendCreatedDeliveryNotification(customer.getEmail(), customer.getLastName(), delivery.getTrackingId());
+        var mailRequest = new StatusChangeMailRequest(DeliveryStatus.CREATED, delivery.getTrackingId());
+        mailService.sendEmailTo(customer.getEmail(), mailRequest);
 
         return deliveryRepository.save(delivery);
     }
@@ -150,7 +145,9 @@ public class DeliveryController {
 
         User customer = userRepository.findById(deliveries.get(0).getCustomerId())
                 .orElseThrow(() -> new RuntimeException("Customer with id " + deliveries.get(0).getCustomerId() + " does not exist"));
-        emailNotificationService.sendDepositedDeliveryEmailNotification(customer.getEmail(), customer.getLastName());
+
+        var mailRequest = new StatusChangeMailRequest(DeliveryStatus.DEPOSITED);
+        mailService.sendEmailTo(customer.getEmail(), mailRequest);
 
         return ResponseEntity.ok(deliveryRepository.saveAll(deliveries));
     }
@@ -168,7 +165,10 @@ public class DeliveryController {
             delivery.setActive(false);
             delivery.setDelivered_at(new Date());
         }
-        emailNotificationService.sendDeliveredDeliveryEmailNotification(customer.getEmail(), customer.getLastName());
+
+        var mailRequest = new StatusChangeMailRequest(DeliveryStatus.DELIVERED);
+        mailService.sendEmailTo(customer.getEmail(), mailRequest);
+
         return ResponseEntity.ok(deliveryRepository.saveAll(deliveries));
     }
 

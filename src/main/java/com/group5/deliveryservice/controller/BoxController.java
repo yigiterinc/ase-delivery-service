@@ -5,8 +5,6 @@ import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
 import com.group5.deliveryservice.repository.BoxRepository;
 import com.group5.deliveryservice.repository.DeliveryRepository;
-import com.group5.deliveryservice.service.SequenceGeneratorService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,29 +15,30 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/boxes")
 public class BoxController {
 
-    @Autowired
-    private BoxRepository boxRepository;
+    private final BoxRepository boxRepository;
 
-    @Autowired
-    DeliveryRepository deliveryRepository;
+    // TODO: Should not access the repository directly
+    final DeliveryRepository deliveryRepository;
 
-    @Autowired
-    private SequenceGeneratorService sequenceGeneratorService;
+    public BoxController(BoxRepository boxRepository, DeliveryRepository deliveryRepository) {
+        this.boxRepository = boxRepository;
+        this.deliveryRepository = deliveryRepository;
+    }
 
     private void checkNameUniqueness(Box box) throws RuntimeException {
         if (boxRepository.findByName(box.getName()).isPresent())
             throw new RuntimeException("Box with name " + box.getName() + " already exists");
     }
 
-    @GetMapping("/boxes/all")
+    @GetMapping("/all")
     public List<Box> getAllBoxes() {
         return boxRepository.findAll();
     }
 
-    @GetMapping("/boxes/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<Box> getBoxById(@PathVariable(value = "id") Long boxId)
             throws RuntimeException {
         Box box = boxRepository.findById(boxId)
@@ -47,21 +46,24 @@ public class BoxController {
         return ResponseEntity.ok().body(box);
     }
 
-    @GetMapping("/boxes")
-    public ResponseEntity<List<Box>> getBoxByDelivererId(@RequestParam long delivererId)
+    @GetMapping("/deliverer/{delivererId}")
+    public ResponseEntity<List<Box>> getBoxByDelivererId(@PathVariable long delivererId)
             throws RuntimeException {
-        List<Long> boxIds = deliveryRepository.findAllByDeliveryStatusAndDelivererId(DeliveryStatus.ASSIGNED, delivererId).stream().map(Delivery::getBoxId).distinct().collect(Collectors.toList());
+        List<Long> boxIds = deliveryRepository.findAllByDeliveryStatusAndDelivererId(DeliveryStatus.CREATED, delivererId)
+                .stream()
+                .map(Delivery::getBoxId).distinct()
+                .collect(Collectors.toList());
+
         return ResponseEntity.ok().body(boxRepository.findByIdIn(boxIds));
     }
 
-    @PostMapping("/boxes")
+    @PostMapping
     public Box createBox(@Valid @RequestBody Box box) {
         checkNameUniqueness(box);
-        box.setId(sequenceGeneratorService.generateSequence(Box.SEQUENCE_NAME));
         return boxRepository.save(box);
     }
 
-    @PutMapping("/boxes/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<Box> updateBox(@PathVariable(value = "id") Long boxId,
                                          @Valid @RequestBody Box boxDetails) throws RuntimeException {
         Box box = boxRepository.findById(boxId)
