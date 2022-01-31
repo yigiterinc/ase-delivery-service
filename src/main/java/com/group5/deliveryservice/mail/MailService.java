@@ -1,15 +1,11 @@
 package com.group5.deliveryservice.mail;
 
-import com.google.common.collect.ImmutableMap;
-import com.group5.deliveryservice.model.DeliveryStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
 import javax.validation.constraints.Email;
-import java.util.Optional;
-import java.util.function.Function;
 
 @Component
 public class MailService {

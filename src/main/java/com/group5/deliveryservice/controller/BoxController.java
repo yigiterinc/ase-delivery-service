@@ -19,9 +19,7 @@ import java.util.stream.Collectors;
 public class BoxController {
 
     private final BoxRepository boxRepository;
-
-    // TODO: Should not access the repository directly
-    final DeliveryRepository deliveryRepository;
+    private final DeliveryRepository deliveryRepository;
 
     public BoxController(BoxRepository boxRepository, DeliveryRepository deliveryRepository) {
         this.boxRepository = boxRepository;
@@ -29,8 +27,8 @@ public class BoxController {
     }
 
     private void checkNameUniqueness(Box box) throws RuntimeException {
-        if (boxRepository.findByName(box.getName()).isPresent())
-            throw new RuntimeException("Box with name " + box.getName() + " already exists");
+        if (boxRepository.findByName(box.getStationName()).isPresent())
+            throw new RuntimeException("Box with name " + box.getStationName() + " already exists");
     }
 
     @GetMapping("/all")
@@ -39,7 +37,7 @@ public class BoxController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Box> getBoxById(@PathVariable(value = "id") Long boxId)
+    public ResponseEntity<Box> getBoxById(@PathVariable(value = "id") String boxId)
             throws RuntimeException {
         Box box = boxRepository.findById(boxId)
                 .orElseThrow(() -> new RuntimeException("Box not found for id " + boxId));
@@ -47,11 +45,13 @@ public class BoxController {
     }
 
     @GetMapping("/deliverer/{delivererId}")
-    public ResponseEntity<List<Box>> getBoxByDelivererId(@PathVariable long delivererId)
+    public ResponseEntity<List<Box>> getBoxByDelivererId(@PathVariable String delivererId)
             throws RuntimeException {
-        List<Long> boxIds = deliveryRepository.findAllByDeliveryStatusAndDelivererId(DeliveryStatus.CREATED, delivererId)
+        List<String> boxIds = deliveryRepository.findAllByDeliveryStatusAndDelivererId(DeliveryStatus.CREATED, delivererId)
                 .stream()
-                .map(Delivery::getBoxId).distinct()
+                .map(Delivery::getTargetPickupBox)
+                .distinct()
+                .map(Box::getId)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok().body(boxRepository.findByIdIn(boxIds));
@@ -64,18 +64,18 @@ public class BoxController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Box> updateBox(@PathVariable(value = "id") Long boxId,
+    public ResponseEntity<Box> updateBox(@PathVariable(value = "id") String boxId,
                                          @Valid @RequestBody Box boxDetails) throws RuntimeException {
         Box box = boxRepository.findById(boxId)
                 .orElseThrow(() -> new RuntimeException("Box not found for id " + boxId));
         checkNameUniqueness(boxDetails);
-        box.setName(boxDetails.getName());
-        box.setAddress(boxDetails.getAddress());
+        box.setStationName(boxDetails.getStationName());
+        box.setStationAddress(boxDetails.getStationAddress());
         return ResponseEntity.ok(boxRepository.save(box));
     }
 
     @DeleteMapping("/boxes/{id}")
-    public Map<String, Boolean> deleteBox(@PathVariable(value = "id") Long boxId)
+    public Map<String, Boolean> deleteBox(@PathVariable(value = "id") String boxId)
             throws RuntimeException {
         Box box = boxRepository.findById(boxId)
                 .orElseThrow(() -> new RuntimeException("Box not found for id " + boxId));

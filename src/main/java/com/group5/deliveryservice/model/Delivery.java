@@ -2,10 +2,10 @@ package com.group5.deliveryservice.model;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import javax.validation.constraints.NotNull;
 import java.util.Date;
 
 @Data
@@ -15,22 +15,20 @@ import java.util.Date;
 public class Delivery {
 
     @Id
-    private long id;
+    private String id;
 
-    private long boxId;
-
-    private long customerId;
-
-    private long delivererId;
-
+    @NotNull
     @Indexed(unique = true)
-    private String trackingId;
+    private String customerId;
 
-    private String description;
+    @NotNull
+    private Box targetPickupBox;
+
+    @NotNull
+    @Indexed(unique = true)
+    private String delivererId;
 
     private DeliveryStatus deliveryStatus;
-
-    private boolean active;
 
     private Date assigned_at;
 
@@ -40,17 +38,9 @@ public class Delivery {
 
     private Date delivered_at;
 
-    public Delivery(long id, String trackingId, String description, DeliveryStatus deliveryStatus, boolean isActive) {
-        this.id = id;
-        this.trackingId = trackingId;
-        this.description = description;
-        this.deliveryStatus = deliveryStatus;
-        this.active = isActive;
-    }
-
-    public Delivery(String description, DeliveryStatus deliveryStatus, boolean active) {
-        this.description = description;
-        this.deliveryStatus = deliveryStatus;
-        this.active = active;
+    public Delivery(String customerId, Box targetPickupBox, String delivererId) {
+        this.customerId = customerId;
+        this.targetPickupBox = targetPickupBox;
+        this.delivererId = delivererId;
     }
 }

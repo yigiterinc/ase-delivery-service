@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface BoxRepository extends MongoRepository<Box, Long> {
+public interface BoxRepository extends MongoRepository<Box, String> {
 
     Optional<Box> findByName(String name);
 
-    List<Box> findByIdIn(List<Long> ids);
+    List<Box> findByIdIn(List<String> ids);
 }
