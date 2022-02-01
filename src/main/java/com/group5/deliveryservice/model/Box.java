@@ -21,5 +21,5 @@ public class Box {
 
     private String stationAddress;
 
-    private List<Delivery> containsDeliveries;
+    private List<Delivery> containedDeliveries;
 }

@@ -4,16 +4,20 @@ import com.group5.deliveryservice.dto.CreateDeliveryDto;
 import com.group5.deliveryservice.dto.DeliveryCollectedDto;
 import com.group5.deliveryservice.dto.DeliveryDeliveredDto;
 import com.group5.deliveryservice.dto.DeliveryDepositedDto;
+import com.group5.deliveryservice.exception.BoxAlreadyFullException;
+import com.group5.deliveryservice.exception.InvalidIdException;
 import com.group5.deliveryservice.mail.MailService;
+import com.group5.deliveryservice.mail.StatusChangeMailRequest;
 import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
-import com.group5.deliveryservice.repository.BoxRepository;
 import com.group5.deliveryservice.repository.DeliveryRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -21,15 +25,22 @@ import java.util.stream.Collectors;
 public class DeliveryService {
 
     private final DeliveryRepository deliveryRepository;
-    private final BoxRepository boxRepository;
+    private final BoxService boxService;
     private final MailService mailService;
 
+    private final RestTemplate restTemplate;
+
+    private final String CUSTOMER_AUTHENTICATION_SERVICE_BASE_URL = "http://customer-authentication-service/api/cas";
+    private final Function<String, String> getCustomerAuthenticationServiceFetchRoleUrl = id -> CUSTOMER_AUTHENTICATION_SERVICE_BASE_URL + "/" + id + "role";
+
     public DeliveryService(final DeliveryRepository deliveryRepository,
-                           final BoxRepository boxRepository,
-                           final MailService mailService) {
+                           final BoxService boxService,
+                           final MailService mailService,
+                           final RestTemplate restTemplate) {
         this.deliveryRepository = deliveryRepository;
-        this.boxRepository = boxRepository;
+        this.boxService = boxService;
         this.mailService = mailService;
+        this.restTemplate = restTemplate;
     }
 
     public List<Delivery> getAll() {
@@ -58,14 +69,45 @@ public class DeliveryService {
     }
 
     public Delivery createDelivery(final CreateDeliveryDto createDeliveryDto) {
-        // TODO
-        // Check that the box exists and get the box
         // Check that the box does not contain deliveries of any other user
-        // make sure that deliverer exists and the given id has DELIVERER role @Valid?
-        // make sure that customer exists and has CUSTOMER role
+        var boxIsValid = boxService.isBoxAvailableForNewDelivery(createDeliveryDto.getCustomerId(), createDeliveryDto.getBoxId());
+        if (!boxIsValid) {
+            throw new BoxAlreadyFullException();
+        }
 
-        // create delivery & send email to customer
-        return null;
+        // Validate role of user with CAS
+        var userId = createDeliveryDto.getCustomerId();
+        if (!userHasExpectedRole(userId, "CUSTOMER")) {
+            throw new InvalidIdException(String.format("The customer with id %s not found!", userId));
+        }
+
+        var delivererId = createDeliveryDto.getDelivererId();
+        // Validate role of deliverer with CAS
+        if (!userHasExpectedRole(delivererId, "DELIVERER")) {
+            throw new InvalidIdException(String.format("The deliverer with id %s not found!", delivererId));
+        }
+
+        var box = boxService.findById(createDeliveryDto.getBoxId());
+        var delivery = deliveryRepository.save(
+                new Delivery(createDeliveryDto.getCustomerId(), box, createDeliveryDto.getDelivererId()));
+
+        var userMailAddress = "";   // TODO: Get the complete user object instead of just the role so we get the mail
+        var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.CREATED, delivery.getId());
+        mailService.sendEmailTo(userMailAddress, statusChangeMailRequest);
+
+        return delivery;
+    }
+
+    /**
+     *
+     * @param expectedRole: Role in String, "DISPATCHER", "DELIVERER" or "CUSTOMER"
+     * @return whether the user's actual role matches the expected role
+     */
+    private boolean userHasExpectedRole(String userId, String expectedRole) {
+        var url = getCustomerAuthenticationServiceFetchRoleUrl.apply(userId);
+        var userRole = restTemplate.postForObject(url, userId, String.class);
+
+        return expectedRole.equals(userRole);
     }
 
     Predicate<Delivery> isActiveDelivery = delivery -> !delivery.getDeliveryStatus().equals(DeliveryStatus.DELIVERED);

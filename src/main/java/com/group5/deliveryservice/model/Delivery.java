@@ -1,5 +1,6 @@
 package com.group5.deliveryservice.model;
 
+import com.group5.deliveryservice.dto.CreateDeliveryDto;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
