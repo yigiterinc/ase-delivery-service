@@ -26,6 +26,4 @@ public class Box {
         this.stationName = stationName;
         this.stationAddress = stationAddress;
     }
-
-    private List<Delivery> containedDeliveries = new ArrayList<>();
 }

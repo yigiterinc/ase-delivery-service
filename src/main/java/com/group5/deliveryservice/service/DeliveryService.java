@@ -3,12 +3,16 @@ package com.group5.deliveryservice.service;
 import com.group5.deliveryservice.dto.*;
 import com.group5.deliveryservice.exception.BoxAlreadyFullException;
 import com.group5.deliveryservice.exception.InvalidIdException;
+import com.group5.deliveryservice.exception.InvalidStatusChangeException;
+import com.group5.deliveryservice.exception.WrongBoxDepositAttemptException;
 import com.group5.deliveryservice.mail.MailService;
 import com.group5.deliveryservice.mail.StatusChangeMailRequest;
+import com.group5.deliveryservice.model.Box;
 import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
 import com.group5.deliveryservice.repository.DeliveryRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
@@ -67,7 +71,7 @@ public class DeliveryService {
 
     public Delivery createDelivery(final CreateDeliveryDto createDeliveryDto) {
         // Check that the box does not contain deliveries of any other user
-        var boxIsValid = boxService.isBoxAvailableForNewDelivery(createDeliveryDto.getCustomerId(), createDeliveryDto.getBoxId());
+        var boxIsValid = isBoxAvailableForNewDelivery(createDeliveryDto.getCustomerId(), createDeliveryDto.getBoxId());
         if (!boxIsValid) {
             throw new BoxAlreadyFullException();
         }
@@ -93,7 +97,7 @@ public class DeliveryService {
 
         var userMailAddress = userDetails.getEmail();
         var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.CREATED, delivery.getId());
-        mailService.sendEmailTo(userMailAddress, statusChangeMailRequest);
+        new Thread(() -> mailService.sendEmailTo(userMailAddress, statusChangeMailRequest)).start();
 
         return delivery;
     }
@@ -109,33 +113,108 @@ public class DeliveryService {
 
     Predicate<Delivery> isActiveDelivery = delivery -> !delivery.getDeliveryStatus().equals(DeliveryStatus.DELIVERED);
 
-    public List<Delivery> changeStatusToCollected(final DeliveryCollectedDto deliveryCollectedDto) {
-        // TODO
-        /*
-           Validate that user with this id exists and has DELIVERER role
-           For each delivery
-            - Validate that delivery exists
-            - Make sure that delivery state is created
-            - Change status to collected
-            - Send email to the customer
-         */
-        return Collections.singletonList(new Delivery());
+    public List<Delivery> changeStatusToCollected(final List<String> deliveryIds, String delivererId) {
+        var deliveriesToSaveUpdates = new ArrayList<Delivery>();
+        for (String deliveryId : deliveryIds) {
+            Delivery updatedDelivery = null;
+            try {
+                updatedDelivery = changeSingleDeliveryStatusToCollected(deliveryId, delivererId);
+            } catch (InvalidIdException invalidIdException) {
+                System.out.println("Delivery or deliverer with id not found - deliveryId:" + deliveryId);
+            } catch (InvalidStatusChangeException invalidStatusChangeException) {
+                System.out.println("Invalid status change exception in delivery " + deliveryId);
+            }
+
+            if (updatedDelivery != null) {
+                deliveriesToSaveUpdates.add(updatedDelivery);
+            }
+        }
+
+        return deliveryRepository.saveAll(deliveriesToSaveUpdates);
     }
 
-    public List<Delivery> changeStatusToDeposited(final DeliveryDepositedDto deliveryDepositedDto) {
-        // TODO
-        /*
-        - Validate that delivery, deliverer & box exists
-        - Make sure that the box with this id is the designated pickup box of delivery
-        - Make sure that delivery state is Collected and the deliverer id is actually the deliverer of this delivery
-        - Add the delivery to collectedDeliveries of respective box.
-        - Change status to deposited
-        - Send email to the customer
-         */
-        return new ArrayList<>();
+    public Delivery changeSingleDeliveryStatusToCollected(final String deliveryId, final String delivererId) {
+        var delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(
+                        () -> new InvalidIdException(
+                                String.format("The delivery with id %s not found!", deliveryId)));
+
+        if (!delivery.getDeliveryStatus().equals(DeliveryStatus.CREATED)) {
+            throw new InvalidStatusChangeException();
+        }
+
+        var deliverer = getUserDetails(delivererId);
+        if (!userHasExpectedRole(deliverer, "DELIVERER")) {
+            throw new InvalidIdException(String.format("The deliverer with id %s not found!", delivererId));
+        }
+
+        if (!delivery.getDelivererId().equals(delivererId)) {
+            throw new InvalidIdException("The deliverer id is not equal to delivererId of this delivery");
+        }
+
+        delivery.setDeliveryStatus(DeliveryStatus.COLLECTED);
+
+        var userId = delivery.getCustomerId();
+        var userDetails = getUserDetails(userId);
+        var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.COLLECTED, delivery.getId());
+        new Thread(() -> mailService.sendEmailTo(userDetails.getEmail(), statusChangeMailRequest)).start();
+
+        return delivery;
     }
 
-    public List<Delivery> changeStatusToDelivered(final DeliveryDeliveredDto deliveryDeliveredDto) {
+    public Delivery changeStatusToDeposited(final String deliveryId, final String delivererId, final String boxId) {
+        var delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(
+                        () -> new InvalidIdException(
+                                String.format("The delivery with id %s not found!", deliveryId)));
+
+        if (!delivery.getDeliveryStatus().equals(DeliveryStatus.COLLECTED)) {
+            throw new InvalidStatusChangeException();
+        }
+
+        if (!delivery.getDelivererId().equals(delivererId)) {
+            throw new InvalidIdException("Supplied delivererId does not match the delivererId of this delivery");
+        }
+
+        var boxIsEqualToTargetBoxOfDelivery = boxId.equals(delivery.getTargetPickupBox().getId());
+        if (!boxIsEqualToTargetBoxOfDelivery) {
+            throw new WrongBoxDepositAttemptException();
+        }
+
+        var deliverer = getUserDetails(delivererId);
+        if (!userHasExpectedRole(deliverer, "DELIVERER")) {
+            throw new InvalidIdException(String.format("The deliverer with id %s not found!", delivererId));
+        }
+
+        delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
+
+        var userId = delivery.getCustomerId();
+        var userDetails = getUserDetails(userId);
+        var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.DEPOSITED, delivery.getId());
+
+        new Thread(() -> mailService.sendEmailTo(userDetails.getEmail(), statusChangeMailRequest)).start();
+
+        return deliveryRepository.save(delivery);
+    }
+
+    public boolean isBoxAvailableForNewDelivery(final String customerId, final String boxId) {
+        var box = boxService.findById(boxId);
+        return boxOnlyContainsDeliveriesOfThisCustomer(box, customerId);
+    }
+
+    private boolean boxOnlyContainsDeliveriesOfThisCustomer(final Box box, final String customerId) {
+        assert box != null;
+
+        var deliveriesInBox = deliveryRepository
+                .findAllByTargetPickupBoxIdAndDeliveryStatus(box.getId(), DeliveryStatus.DEPOSITED);
+        var boxIsEmpty = deliveriesInBox.isEmpty();
+        var containsDeliveriesOfThisCustomerOnly = deliveriesInBox
+                .stream().allMatch(delivery -> delivery.getCustomerId().equals(customerId));
+
+        return boxIsEmpty || containsDeliveriesOfThisCustomerOnly;
+    }
+
+    public List<Delivery> changeStatusToDelivered(final String userId, final String boxId) {
         // TODO
         /*
         - All deliveries inside this box should be collected

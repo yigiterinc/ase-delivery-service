@@ -52,18 +52,19 @@ public class DeliveryController {
         return deliveryService.createDelivery(createDeliveryDto);
     }
 
-    @PutMapping("/deliveryStatus")
-    public ResponseEntity<List<Delivery>> updateDeliveryStatus(DeliveryStatusUpdate deliveryStatusUpdate) {
-        List<Delivery> updatedEntity = null;
-        if (deliveryStatusUpdate instanceof DeliveryCollectedDto) {
-            updatedEntity = deliveryService.changeStatusToCollected((DeliveryCollectedDto) deliveryStatusUpdate);
-        } else if (deliveryStatusUpdate instanceof DeliveryDepositedDto) {
-            updatedEntity = deliveryService.changeStatusToDeposited((DeliveryDepositedDto) deliveryStatusUpdate);
-        } else if (deliveryStatusUpdate instanceof DeliveryDeliveredDto) {
-            updatedEntity = deliveryService.changeStatusToDelivered((DeliveryDeliveredDto) deliveryStatusUpdate);
-        }
+    @PutMapping("/{deliveryIds}/collected/deliverer/{delivererId}")
+    public List<Delivery> onDeliveriesCollected(@PathVariable final List<String> deliveryIds, @PathVariable final String delivererId) {
+        return deliveryService.changeStatusToCollected(deliveryIds, delivererId);
+    }
 
-        return ResponseEntity.ok().body(updatedEntity);
+    @PutMapping("/{deliveryId}/deposited/deliverer/{delivererId}/box/{boxId}")
+    public Delivery onDeliveryDeposited(@PathVariable final String deliveryId, @PathVariable final String delivererId, @PathVariable final String boxId) {
+        return deliveryService.changeStatusToDeposited(deliveryId, delivererId, boxId);
+    }
+
+    @PutMapping("/user/{userId}/delivered/box/{boxId}")
+    public List<Delivery> onDeliveryDelivered(@PathVariable final String userId, @PathVariable final String boxId) {
+        return deliveryService.changeStatusToDelivered(userId, boxId);
     }
 }
 

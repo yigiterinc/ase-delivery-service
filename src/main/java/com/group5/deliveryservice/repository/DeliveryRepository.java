@@ -18,4 +18,6 @@ public interface DeliveryRepository extends MongoRepository<Delivery, String> {
     void deleteById(String deliveryId);
 
     List<Delivery> findAllByDeliveryStatusAndDelivererId(DeliveryStatus created, String delivererId);
+
+    List<Delivery> findAllByTargetPickupBoxIdAndDeliveryStatus(String boxId, DeliveryStatus deliveryStatus);
 }

@@ -29,7 +29,7 @@ public class Delivery {
     @Indexed(unique = true)
     private String delivererId;
 
-    private DeliveryStatus deliveryStatus;
+    private DeliveryStatus deliveryStatus = DeliveryStatus.CREATED;
 
     @JsonIgnore
     private Date assigned_at;

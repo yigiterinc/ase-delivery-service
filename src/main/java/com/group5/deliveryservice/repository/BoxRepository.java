@@ -1,6 +1,7 @@
 package com.group5.deliveryservice.repository;
 
 import com.group5.deliveryservice.model.Box;
+import com.group5.deliveryservice.model.Delivery;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
