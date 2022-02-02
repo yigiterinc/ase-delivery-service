@@ -17,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -215,15 +216,33 @@ public class DeliveryService {
     }
 
     public List<Delivery> changeStatusToDelivered(final String userId, final String boxId) {
-        // TODO
-        /*
-        - All deliveries inside this box should be collected
-        - Makes sure that this user has deliveries inside that box and therefore is allowed to open it. Otherwise rejects it.
-        - System should make sure that all collected deliveries by this deliverer have been delivered.
-        - Change status to delivered
-        - Clear the containsDeliveries of Box.
-         */
-        return new ArrayList<>();
+        var deliveriesInsideBox = deliveryRepository
+                .findAllByTargetPickupBoxIdAndDeliveryStatus(boxId, DeliveryStatus.DEPOSITED);
+
+        if (deliveriesInsideBox.isEmpty()) {
+            return new ArrayList<>();   // No delivery inside box
+        }
+
+        assert allDeliveriesAreForTheSameUser(deliveriesInsideBox);
+
+        var userDetails = getUserDetails(userId);
+        var deliveriesToUpdate = new ArrayList<Delivery>();
+        for (Delivery delivery : deliveriesInsideBox) {
+            if (!delivery.getCustomerId().equals(userId)) {
+                throw new InvalidIdException("Deliveries inside the box do not belong to this user!");
+            }
+
+            delivery.setDeliveryStatus(DeliveryStatus.DELIVERED);
+            deliveriesToUpdate.add(delivery);
+            StatusChangeMailRequest statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.DELIVERED);
+            new Thread(() -> mailService.sendEmailTo(userDetails.getEmail(), statusChangeMailRequest)).start();
+        }
+
+        return deliveryRepository.saveAll(deliveriesToUpdate);
+    }
+
+    private boolean allDeliveriesAreForTheSameUser(List<Delivery> deliveries) {
+        return Collections.frequency(deliveries, deliveries.get(0)) == deliveries.size();
     }
 
 }
