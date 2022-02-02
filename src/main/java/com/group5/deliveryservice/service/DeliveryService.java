@@ -1,9 +1,6 @@
 package com.group5.deliveryservice.service;
 
-import com.group5.deliveryservice.dto.CreateDeliveryDto;
-import com.group5.deliveryservice.dto.DeliveryCollectedDto;
-import com.group5.deliveryservice.dto.DeliveryDeliveredDto;
-import com.group5.deliveryservice.dto.DeliveryDepositedDto;
+import com.group5.deliveryservice.dto.*;
 import com.group5.deliveryservice.exception.BoxAlreadyFullException;
 import com.group5.deliveryservice.exception.InvalidIdException;
 import com.group5.deliveryservice.mail.MailService;
@@ -30,8 +27,8 @@ public class DeliveryService {
 
     private final RestTemplate restTemplate;
 
-    private final String CUSTOMER_AUTHENTICATION_SERVICE_BASE_URL = "http://customer-authentication-service/api/cas";
-    private final Function<String, String> getCustomerAuthenticationServiceFetchRoleUrl = id -> CUSTOMER_AUTHENTICATION_SERVICE_BASE_URL + "/" + id + "role";
+    private final String CUSTOMER_AUTHENTICATION_SERVICE_BASE_URL = "http://customer-authentication-service:8081/api/cas";
+    private final Function<String, String> getCustomerAuthenticationServiceFetchUserUrl = id -> CUSTOMER_AUTHENTICATION_SERVICE_BASE_URL + "/users/" + id;
 
     public DeliveryService(final DeliveryRepository deliveryRepository,
                            final BoxService boxService,
@@ -77,13 +74,15 @@ public class DeliveryService {
 
         // Validate role of user with CAS
         var userId = createDeliveryDto.getCustomerId();
-        if (!userHasExpectedRole(userId, "CUSTOMER")) {
+        var userDetails = getUserDetails(userId);
+        if (!userHasExpectedRole(userDetails, "CUSTOMER")) {
             throw new InvalidIdException(String.format("The customer with id %s not found!", userId));
         }
 
         var delivererId = createDeliveryDto.getDelivererId();
+        var delivererDetails = getUserDetails(delivererId);
         // Validate role of deliverer with CAS
-        if (!userHasExpectedRole(delivererId, "DELIVERER")) {
+        if (!userHasExpectedRole(delivererDetails, "DELIVERER")) {
             throw new InvalidIdException(String.format("The deliverer with id %s not found!", delivererId));
         }
 
@@ -91,23 +90,21 @@ public class DeliveryService {
         var delivery = deliveryRepository.save(
                 new Delivery(createDeliveryDto.getCustomerId(), box, createDeliveryDto.getDelivererId()));
 
-        var userMailAddress = "";   // TODO: Get the complete user object instead of just the role so we get the mail
+
+        var userMailAddress = userDetails.getEmail();
         var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.CREATED, delivery.getId());
         mailService.sendEmailTo(userMailAddress, statusChangeMailRequest);
 
         return delivery;
     }
 
-    /**
-     *
-     * @param expectedRole: Role in String, "DISPATCHER", "DELIVERER" or "CUSTOMER"
-     * @return whether the user's actual role matches the expected role
-     */
-    private boolean userHasExpectedRole(String userId, String expectedRole) {
-        var url = getCustomerAuthenticationServiceFetchRoleUrl.apply(userId);
-        var userRole = restTemplate.postForObject(url, userId, String.class);
+    private boolean userHasExpectedRole(UserDto userDto, String expectedRole) {
+        return userDto != null && expectedRole.equals(userDto.getRole());
+    }
 
-        return expectedRole.equals(userRole);
+    private UserDto getUserDetails(String userId) {
+        var url = getCustomerAuthenticationServiceFetchUserUrl.apply(userId);
+        return restTemplate.getForObject(url, UserDto.class);
     }
 
     Predicate<Delivery> isActiveDelivery = delivery -> !delivery.getDeliveryStatus().equals(DeliveryStatus.DELIVERED);

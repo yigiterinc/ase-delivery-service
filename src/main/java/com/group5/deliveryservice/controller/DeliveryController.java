@@ -12,8 +12,6 @@ import java.util.*;
 @RequestMapping("/deliveries")
 public class DeliveryController {
 
-    private final static int ONE_STEP_STATUS_CHANGE = -1;
-
     private final DeliveryService deliveryService;
 
     public DeliveryController(DeliveryService deliveryService) {

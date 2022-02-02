@@ -1,5 +1,6 @@
 package com.group5.deliveryservice.controller;
 
+import com.group5.deliveryservice.dto.CreateBoxDto;
 import com.group5.deliveryservice.model.Box;
 import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
@@ -15,7 +16,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/boxes")
+@RequestMapping("/boxes")
 public class BoxController {
 
     private final BoxRepository boxRepository;
@@ -26,9 +27,9 @@ public class BoxController {
         this.deliveryRepository = deliveryRepository;
     }
 
-    private void checkNameUniqueness(Box box) throws RuntimeException {
-        if (boxRepository.findByName(box.getStationName()).isPresent())
-            throw new RuntimeException("Box with name " + box.getStationName() + " already exists");
+    private void checkNameUniqueness(CreateBoxDto createBoxDto) throws RuntimeException {
+        if (boxRepository.findByStationName(createBoxDto.getStationName()).isPresent())
+            throw new RuntimeException("Box with name " + createBoxDto.getStationName() + " already exists");
     }
 
     @GetMapping("/all")
@@ -58,14 +59,15 @@ public class BoxController {
     }
 
     @PostMapping
-    public Box createBox(@Valid @RequestBody Box box) {
-        checkNameUniqueness(box);
+    public Box createBox(@RequestBody CreateBoxDto boxDto) {
+        checkNameUniqueness(boxDto);
+        Box box = new Box(boxDto.getStationName(), boxDto.getStationAddress());
         return boxRepository.save(box);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Box> updateBox(@PathVariable(value = "id") String boxId,
-                                         @Valid @RequestBody Box boxDetails) throws RuntimeException {
+                                         @Valid @RequestBody CreateBoxDto boxDetails) throws RuntimeException {
         Box box = boxRepository.findById(boxId)
                 .orElseThrow(() -> new RuntimeException("Box not found for id " + boxId));
         checkNameUniqueness(boxDetails);

@@ -1,6 +1,6 @@
 package com.group5.deliveryservice.model;
 
-import com.group5.deliveryservice.dto.CreateDeliveryDto;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -31,12 +31,16 @@ public class Delivery {
 
     private DeliveryStatus deliveryStatus;
 
+    @JsonIgnore
     private Date assigned_at;
 
+    @JsonIgnore
     private Date collected_at;
 
+    @JsonIgnore
     private Date deposited_at;
 
+    @JsonIgnore
     private Date delivered_at;
 
     public Delivery(String customerId, Box targetPickupBox, String delivererId) {

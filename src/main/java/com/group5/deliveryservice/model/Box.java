@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -21,5 +22,10 @@ public class Box {
 
     private String stationAddress;
 
-    private List<Delivery> containedDeliveries;
+    public Box(String stationName, String stationAddress) {
+        this.stationName = stationName;
+        this.stationAddress = stationAddress;
+    }
+
+    private List<Delivery> containedDeliveries = new ArrayList<>();
 }

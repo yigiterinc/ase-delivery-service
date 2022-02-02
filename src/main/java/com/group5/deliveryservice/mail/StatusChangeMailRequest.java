@@ -10,7 +10,7 @@ public class StatusChangeMailRequest implements MailRequest {
     private String trackingId;
 
     private final String BODY_PREFIX = "Dear Customer, \n";
-    private final String BODY_SUFFIX = "\n With kind regards\n ASEDelivery";
+    private final String BODY_SUFFIX = "\n\nWith kind regards\nASEDelivery";
     private final String SUBJECT_PREFIX = "ASEDelivery:";
     private final ImmutableMap<DeliveryStatus, String> STATUS_SUBJECT = ImmutableMap.of(
             DeliveryStatus.CREATED, String.format("%s New order is created", SUBJECT_PREFIX),

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import javax.validation.constraints.Email;
 
+
 @Component
 public class MailService {
 
