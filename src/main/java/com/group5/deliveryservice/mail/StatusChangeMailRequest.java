@@ -3,11 +3,13 @@ package com.group5.deliveryservice.mail;
 import com.google.common.collect.ImmutableMap;
 import com.group5.deliveryservice.model.DeliveryStatus;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Function;
 
 public class StatusChangeMailRequest implements MailRequest {
     private final DeliveryStatus deliveryStatus;
-    private String trackingId;
+    private List<String> trackingIds;
 
     private final String BODY_PREFIX = "Dear Customer, \n";
     private final String BODY_SUFFIX = "\n\nWith kind regards\nASEDelivery";
@@ -25,11 +27,18 @@ public class StatusChangeMailRequest implements MailRequest {
 
     public StatusChangeMailRequest(final DeliveryStatus deliveryStatus) {
         this.deliveryStatus = deliveryStatus;
+        this.trackingIds = new LinkedList<>();
     }
 
     public StatusChangeMailRequest(final DeliveryStatus deliveryStatus, String trackingId) {
         this.deliveryStatus = deliveryStatus;
-        this.trackingId = trackingId;
+        trackingIds = new LinkedList<>();
+        this.trackingIds.add(trackingId);
+    }
+
+    public StatusChangeMailRequest(final DeliveryStatus deliveryStatus, List<String> trackingIds) {
+        this.deliveryStatus = deliveryStatus;
+        this.trackingIds = trackingIds;
     }
 
     @Override
@@ -39,7 +48,7 @@ public class StatusChangeMailRequest implements MailRequest {
 
     @Override
     public String getMailBody() {
-        return STATUS_MAIL_BODY.get(deliveryStatus).apply(trackingId);
+        return STATUS_MAIL_BODY.get(deliveryStatus).apply(String.join(", ", trackingIds));
     }
 
     @Override
