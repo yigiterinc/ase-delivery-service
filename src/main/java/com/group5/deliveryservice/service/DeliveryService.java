@@ -11,6 +11,7 @@ import com.group5.deliveryservice.repository.DeliveryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -90,7 +91,6 @@ public class DeliveryService {
         var delivery = deliveryRepository.save(
                 new Delivery(createDeliveryDto.getCustomerId(), box, createDeliveryDto.getDelivererId()));
 
-
         var userMailAddress = userDetails.getEmail();
         var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.CREATED, delivery.getId());
         new Thread(() -> mailService.sendEmailTo(userMailAddress, statusChangeMailRequest)).start();
@@ -149,6 +149,7 @@ public class DeliveryService {
         }
 
         delivery.setDeliveryStatus(DeliveryStatus.COLLECTED);
+        delivery.setCollectedAt(new Date());
 
         var userId = delivery.getCustomerId();
         var userDetails = getUserDetails(userId);
@@ -179,6 +180,8 @@ public class DeliveryService {
 
             delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
         }
+        delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
+        delivery.setDeliveredAt(new Date());
 
         var userId = deliveries.get(0).getCustomerId();
         var userDetails = getUserDetails(userId);
