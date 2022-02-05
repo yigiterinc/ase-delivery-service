@@ -57,9 +57,9 @@ public class DeliveryController {
         return deliveryService.changeStatusToCollected(deliveryIds, delivererId);
     }
 
-    @PutMapping("/{deliveryId}/deposited/deliverer/{delivererId}/box/{boxId}")
-    public Delivery onDeliveryDeposited(@PathVariable final String deliveryId, @PathVariable final String delivererId, @PathVariable final String boxId) {
-        return deliveryService.changeStatusToDeposited(deliveryId, delivererId, boxId);
+    @PutMapping("/deliverer/{delivererId}/deposited/box/{boxId}")
+    public List<Delivery> onDeliveryDeposited(@PathVariable final String delivererId, @PathVariable final String boxId) {
+        return deliveryService.changeStatusToDeposited(delivererId, boxId);
     }
 
     @PutMapping("/user/{userId}/delivered/box/{boxId}")

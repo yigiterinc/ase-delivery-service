@@ -1,10 +1,7 @@
 package com.group5.deliveryservice.service;
 
 import com.group5.deliveryservice.dto.*;
-import com.group5.deliveryservice.exception.BoxAlreadyFullException;
-import com.group5.deliveryservice.exception.InvalidIdException;
-import com.group5.deliveryservice.exception.InvalidStatusChangeException;
-import com.group5.deliveryservice.exception.WrongBoxDepositAttemptException;
+import com.group5.deliveryservice.exception.*;
 import com.group5.deliveryservice.mail.MailService;
 import com.group5.deliveryservice.mail.StatusChangeMailRequest;
 import com.group5.deliveryservice.model.Box;
@@ -12,12 +9,10 @@ import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
 import com.group5.deliveryservice.repository.DeliveryRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -163,39 +158,37 @@ public class DeliveryService {
         return delivery;
     }
 
-    public Delivery changeStatusToDeposited(final String deliveryId, final String delivererId, final String boxId) {
-        var delivery = deliveryRepository.findById(deliveryId)
-                .orElseThrow(
-                        () -> new InvalidIdException(
-                                String.format("The delivery with id %s not found!", deliveryId)));
+    public List<Delivery> changeStatusToDeposited(final String delivererId, final String boxId) {
 
-        if (!delivery.getDeliveryStatus().equals(DeliveryStatus.COLLECTED)) {
-            throw new InvalidStatusChangeException();
+        var deliveries = deliveryRepository.findAllByDeliveryStatusAndDelivererIdAndTargetPickupBoxId(DeliveryStatus.COLLECTED, delivererId, boxId);
+
+        if (deliveries.isEmpty()) {
+            throw new NoDeliveriesToDepositException();
         }
 
-        if (!delivery.getDelivererId().equals(delivererId)) {
-            throw new InvalidIdException("Supplied delivererId does not match the delivererId of this delivery");
+        for (var delivery : deliveries) {
+
+            if (!delivery.getDelivererId().equals(delivererId)) {
+                throw new InvalidIdException("Supplied delivererId does not match the delivererId of this delivery");
+            }
+
+            var deliverer = getUserDetails(delivererId);
+            if (!userHasExpectedRole(deliverer, "DELIVERER")) {
+                throw new InvalidIdException(String.format("The deliverer with id %s not found!", delivererId));
+            }
+
+            delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
         }
 
-        var boxIsEqualToTargetBoxOfDelivery = boxId.equals(delivery.getTargetPickupBox().getId());
-        if (!boxIsEqualToTargetBoxOfDelivery) {
-            throw new WrongBoxDepositAttemptException();
-        }
-
-        var deliverer = getUserDetails(delivererId);
-        if (!userHasExpectedRole(deliverer, "DELIVERER")) {
-            throw new InvalidIdException(String.format("The deliverer with id %s not found!", delivererId));
-        }
-
-        delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
-
-        var userId = delivery.getCustomerId();
+        var userId = deliveries.get(0).getCustomerId();
         var userDetails = getUserDetails(userId);
-        var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.DEPOSITED, delivery.getId());
+        var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.DEPOSITED, deliveries.stream()
+                .map(Delivery::getId)
+                .collect(Collectors.toList()));
 
         new Thread(() -> mailService.sendEmailTo(userDetails.getEmail(), statusChangeMailRequest)).start();
 
-        return deliveryRepository.save(delivery);
+        return deliveryRepository.saveAll(deliveries);
     }
 
     public boolean isBoxAvailableForNewDelivery(final String customerId, final String boxId) {
