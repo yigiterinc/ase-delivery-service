@@ -15,10 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -95,7 +92,6 @@ public class DeliveryService {
         var delivery = deliveryRepository.save(
                 new Delivery(createDeliveryDto.getCustomerId(), box, createDeliveryDto.getDelivererId()));
 
-
         var userMailAddress = userDetails.getEmail();
         var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.CREATED, delivery.getId());
         new Thread(() -> mailService.sendEmailTo(userMailAddress, statusChangeMailRequest)).start();
@@ -154,6 +150,7 @@ public class DeliveryService {
         }
 
         delivery.setDeliveryStatus(DeliveryStatus.COLLECTED);
+        delivery.setCollectedAt(new Date());
 
         var userId = delivery.getCustomerId();
         var userDetails = getUserDetails(userId);
@@ -188,6 +185,7 @@ public class DeliveryService {
         }
 
         delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
+        delivery.setDeliveredAt(new Date());
 
         var userId = delivery.getCustomerId();
         var userDetails = getUserDetails(userId);

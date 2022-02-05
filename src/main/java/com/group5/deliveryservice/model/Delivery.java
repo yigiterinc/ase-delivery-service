@@ -32,16 +32,16 @@ public class Delivery {
     private DeliveryStatus deliveryStatus = DeliveryStatus.CREATED;
 
     @JsonIgnore
-    private Date assigned_at;
+    private Date createdAt = new Date();
 
     @JsonIgnore
-    private Date collected_at;
+    private Date collectedAt;
 
     @JsonIgnore
-    private Date deposited_at;
+    private Date depositedAt;
 
     @JsonIgnore
-    private Date delivered_at;
+    private Date deliveredAt;
 
     public Delivery(String customerId, Box targetPickupBox, String delivererId) {
         this.customerId = customerId;
