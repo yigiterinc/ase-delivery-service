@@ -168,7 +168,6 @@ public class DeliveryService {
         }
 
         for (var delivery : deliveries) {
-
             if (!delivery.getDelivererId().equals(delivererId)) {
                 throw new InvalidIdException("Supplied delivererId does not match the delivererId of this delivery");
             }
@@ -179,9 +178,9 @@ public class DeliveryService {
             }
 
             delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
+            delivery.setDeliveredAt(new Date());
         }
-        delivery.setDeliveryStatus(DeliveryStatus.DEPOSITED);
-        delivery.setDeliveredAt(new Date());
+
 
         var userId = deliveries.get(0).getCustomerId();
         var userDetails = getUserDetails(userId);

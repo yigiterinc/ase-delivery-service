@@ -13,7 +13,7 @@ services:
       - SERVER_ADDRESS=0.0.0.0
       - MONGODB_URI=mongodb://ds_delivery_user:secret@ds_mongodb:27017/ds_mongodb?authSource=admin
       - MONGODB_STATUS_HOST=ds_mongodb
-      - MONGODB_STATUS_PORT=27017
+      - MONGODB_STATUS_PORT=27018
     ports:
       - "8080:8080"
     depends_on:
@@ -21,6 +21,7 @@ services:
 
   ds_mongodb:
     image: mongo:latest
+    command: mongod --port 27018
     container_name: ds_mongodb
     hostname: ds_mongodb
     restart: unless-stopped
@@ -29,6 +30,6 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ds_delivery_user
       MONGO_INITDB_ROOT_PASSWORD: secret
     ports:
-      - 27017:27017
+      - 27018:27018
     volumes:
       - "./data/db:/data/db"
