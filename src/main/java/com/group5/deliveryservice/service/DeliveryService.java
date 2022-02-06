@@ -151,11 +151,6 @@ public class DeliveryService {
         delivery.setDeliveryStatus(DeliveryStatus.COLLECTED);
         delivery.setCollectedAt(new Date());
 
-        var userId = delivery.getCustomerId();
-        var userDetails = getUserDetails(userId);
-        var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.COLLECTED, delivery.getId());
-        new Thread(() -> mailService.sendEmailTo(userDetails.getEmail(), statusChangeMailRequest)).start();
-
         return delivery;
     }
 

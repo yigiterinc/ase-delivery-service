@@ -16,14 +16,14 @@ public class StatusChangeMailRequest implements MailRequest {
     private final String SUBJECT_PREFIX = "ASEDelivery:";
     private final ImmutableMap<DeliveryStatus, String> STATUS_SUBJECT = ImmutableMap.of(
             DeliveryStatus.CREATED, String.format("%s New order is created", SUBJECT_PREFIX),
-            DeliveryStatus.COLLECTED, String.format("%s Your order is now collected", SUBJECT_PREFIX),
+            DeliveryStatus.DEPOSITED, String.format("%s Your order is now deposited", SUBJECT_PREFIX),
             DeliveryStatus.DELIVERED, String.format("%s Your order is delivered", SUBJECT_PREFIX)
     );
 
     private final ImmutableMap<DeliveryStatus, Function<String, String>> STATUS_MAIL_BODY = ImmutableMap.of(
             DeliveryStatus.CREATED, (trackingNumber) -> String.format("%sYour order is on the way. You can use the following tracking code to track it: %s. %s", BODY_PREFIX, trackingNumber, BODY_SUFFIX),
-            DeliveryStatus.COLLECTED, (__) -> String.format("%sYour order was collected from the pick up box. %s", BODY_PREFIX, BODY_SUFFIX),
-            DeliveryStatus.DELIVERED, (__) -> String.format("%sYour order was delivered to the pick up box. %s", BODY_PREFIX, BODY_SUFFIX));
+            DeliveryStatus.DEPOSITED, (__) -> String.format("%sYour order was deposited in the pick up box. %s", BODY_PREFIX, BODY_SUFFIX),
+            DeliveryStatus.DELIVERED, (__) -> String.format("%sYour order was delivered. %s", BODY_PREFIX, BODY_SUFFIX));
 
     public StatusChangeMailRequest(final DeliveryStatus deliveryStatus) {
         this.deliveryStatus = deliveryStatus;
@@ -48,7 +48,8 @@ public class StatusChangeMailRequest implements MailRequest {
 
     @Override
     public String getMailBody() {
-        return STATUS_MAIL_BODY.get(deliveryStatus).apply(String.join(", ", trackingIds));
+        String t = String.join(", ", trackingIds);
+        return STATUS_MAIL_BODY.get(deliveryStatus).apply(t);
     }
 
     @Override
