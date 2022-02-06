@@ -76,7 +76,7 @@ public class BoxController {
         return ResponseEntity.ok(boxRepository.save(box));
     }
 
-    @DeleteMapping("/boxes/{id}")
+    @DeleteMapping("/{id}")
     public Map<String, Boolean> deleteBox(@PathVariable(value = "id") String boxId)
             throws RuntimeException {
         Box box = boxRepository.findById(boxId)
