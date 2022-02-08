@@ -181,7 +181,6 @@ public class DeliveryService {
             delivery.setDeliveredAt(new Date());
         }
 
-
         var userId = deliveries.get(0).getCustomerId();
         var userDetails = getUserDetails(userId);
         var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.DEPOSITED, deliveries.stream()
