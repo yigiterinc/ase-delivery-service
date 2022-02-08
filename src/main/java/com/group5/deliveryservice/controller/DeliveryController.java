@@ -19,7 +19,7 @@ public class DeliveryController {
     }
 
     @GetMapping
-    public List<Delivery> getAll() {
+    public List<Delivery> getAllDeliveries() {
         return deliveryService.getAll();
     }
 
@@ -27,16 +27,6 @@ public class DeliveryController {
     public ResponseEntity<Delivery> getDeliveryById(@PathVariable String deliveryId) {
         var delivery = deliveryService.findDeliveryById(deliveryId);
         return ResponseEntity.ok().body(delivery);
-    }
-
-    @PostMapping
-    public Delivery createDelivery(@RequestBody final CreateDeliveryDto createDeliveryDto) {
-        return deliveryService.createDelivery(createDeliveryDto);
-    }
-
-    @DeleteMapping("/{deliveryId}")
-    public void deleteDelivery(@PathVariable String deliveryId) {
-        deliveryService.deleteDelivery(deliveryId);
     }
 
     @GetMapping("/customer/{customerId}/status/active")
@@ -50,6 +40,16 @@ public class DeliveryController {
     public ResponseEntity<List<Delivery>> getPastDeliveriesOfCustomer(@PathVariable String customerId) {
         List<Delivery> delivery = deliveryService.getPastDeliveriesOfCustomer(customerId);
         return ResponseEntity.ok().body(delivery);
+    }
+
+    @PostMapping
+    public Delivery createDelivery(@RequestBody final CreateDeliveryDto createDeliveryDto) {
+        return deliveryService.createDelivery(createDeliveryDto);
+    }
+
+    @DeleteMapping("/{deliveryId}")
+    public void deleteDelivery(@PathVariable String deliveryId) {
+        deliveryService.deleteDelivery(deliveryId);
     }
 
     @PutMapping("/{deliveryIds}/collected/deliverer/{delivererId}")

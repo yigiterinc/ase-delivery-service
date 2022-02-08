@@ -21,9 +21,6 @@ public class User {
     @Transient
     public static final String SEQUENCE_NAME = "users_sequence";
 
-    @Transient
-    public static final String RFID_SEQUENCE_NAME = "rfid_sequence";
-
     @Id
     private long id;
 
