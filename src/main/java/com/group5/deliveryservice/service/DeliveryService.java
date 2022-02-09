@@ -66,6 +66,10 @@ public class DeliveryService {
                 .collect(Collectors.toList());
     }
 
+    public List<Delivery> getAssignedDeliveriesToDeliverer(final String delivererId) {
+        return this.deliveryRepository.findAllByDelivererId(delivererId);
+    }
+
     public Delivery createDelivery(final CreateDeliveryDto createDeliveryDto) {
         // Check that the box does not contain deliveries of any other user
         var boxIsValid = isBoxAvailableForNewDelivery(createDeliveryDto.getCustomerId(), createDeliveryDto.getBoxId());
@@ -109,7 +113,11 @@ public class DeliveryService {
 
     Predicate<Delivery> isActiveDelivery = delivery -> !delivery.getDeliveryStatus().equals(DeliveryStatus.DELIVERED);
 
-    public List<Delivery> changeStatusToCollected(final List<String> deliveryIds, String delivererId) {
+    public List<Delivery> changeStatusToCollected(final String boxId, String delivererId) {
+        final List<String> deliveryIds = deliveryRepository
+                .findAllByDeliveryStatusAndDelivererIdAndTargetPickupBoxId(DeliveryStatus.CREATED, delivererId, boxId)
+                .stream().map(delivery -> delivery.getId()).collect(Collectors.toList());
+
         var deliveriesToSaveUpdates = new ArrayList<Delivery>();
         for (String deliveryId : deliveryIds) {
             Delivery updatedDelivery = null;
