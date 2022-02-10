@@ -1,5 +1,8 @@
 FROM bellsoft/liberica-openjdk-alpine-musl:17
 
+RUN mkdir -p /usr/local/ds
+ADD delivery-service/target/delivery-service-0.0.1-SNAPSHOT.jar /usr/local/ds/
+
 EXPOSE 8080
 
 CMD echo "********************************************************"
@@ -18,4 +21,4 @@ CMD echo "********************************************************"
 
 CMD java -Dserver.port=$SERVER_PORT \
      -Dspring.data.mongodb.uri=$MONGODB_URI \
-     -jar target/delivery-service-0.0.1-SNAPSHOT.jar
+     -jar /usr/local/ds/delivery-service-0.0.1-SNAPSHOT.jar
