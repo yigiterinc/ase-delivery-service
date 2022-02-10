@@ -61,12 +61,19 @@ public class BoxService {
         return delivererAssignedBoxDtos;
     }
 
+    public void checkNameUniqueness(Box box) throws RuntimeException {
+        var boxWithSameName = boxRepository.findByStationName(box.getStationName());
+        if (boxWithSameName.isPresent() && !box.getId().equals(boxWithSameName.get().getId()))
+            throw new RuntimeException("Box with name " + box.getStationName() + " already exists");
+    }
+
     public void checkNameUniqueness(CreateBoxDto createBoxDto) throws RuntimeException {
-        if (boxRepository.findByStationName(createBoxDto.getStationName()).isPresent())
+        var boxWithSameName = boxRepository.findByStationName(createBoxDto.getStationName());
+        if (boxWithSameName.isPresent())
             throw new RuntimeException("Box with name " + createBoxDto.getStationName() + " already exists");
     }
 
-    public Box updateBox(String boxId, CreateBoxDto boxDetails) {
+    public Box updateBox(String boxId, Box boxDetails) {
         Box box = boxRepository.findById(boxId)
                 .orElseThrow(() -> new RuntimeException("Box not found for id " + boxId));
         checkNameUniqueness(boxDetails);

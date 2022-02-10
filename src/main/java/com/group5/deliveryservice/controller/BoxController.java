@@ -50,8 +50,8 @@ public class BoxController {
 
     @PutMapping("/{id}")
     public Box updateBox(@PathVariable(value = "id") String boxId,
-                                         @Valid @RequestBody CreateBoxDto boxDetails) {
-        return boxService.updateBox(boxId, boxDetails);
+                                         @Valid @RequestBody Box box) {
+        return boxService.updateBox(boxId, box);
     }
 
     @DeleteMapping("/{id}")
