@@ -4,6 +4,7 @@ import com.group5.deliveryservice.dto.CreateBoxDto;
 import com.group5.deliveryservice.dto.DelivererAssignedBoxDto;
 import com.group5.deliveryservice.exception.InvalidIdException;
 import com.group5.deliveryservice.model.Box;
+import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
 import com.group5.deliveryservice.repository.BoxRepository;
 import com.group5.deliveryservice.repository.DeliveryRepository;
@@ -42,10 +43,22 @@ public class BoxService {
     }
 
     public List<DelivererAssignedBoxDto> getDelivererAssignedBoxes(String delivererId) {
-        return deliveryRepository.findAllByDelivererId(delivererId)
+        List<String> boxIds = deliveryRepository.findAllByDelivererId(delivererId)
                 .stream()
-                .map(delivery -> new DelivererAssignedBoxDto(findById(delivery.getTargetPickupBox().getId()), delivery.getDeliveryStatus()))
+                .map(Delivery::getTargetPickupBox)
+                .distinct()
+                .map(Box::getId)
                 .collect(Collectors.toList());
+
+        var delivererAssignedBoxDtos = boxIds.stream().map(id -> {
+            var box = findById(id);
+            var delivery = deliveryRepository.findAllByDeliveryStatusInAndTargetPickupBoxId(
+                    List.of(DeliveryStatus.CREATED, DeliveryStatus.COLLECTED), id).get(0);
+            var deliveryStatus = delivery.getDeliveryStatus();
+            return new DelivererAssignedBoxDto(box, deliveryStatus);
+        }).collect(Collectors.toList());
+
+        return delivererAssignedBoxDtos;
     }
 
     public void checkNameUniqueness(CreateBoxDto createBoxDto) throws RuntimeException {

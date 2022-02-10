@@ -18,6 +18,8 @@ public interface DeliveryRepository extends MongoRepository<Delivery, String> {
 
     List<Delivery> findAllByDelivererId(String delivererId);
 
+    List<Delivery> findAllByDeliveryStatusInAndTargetPickupBoxId(List<DeliveryStatus> deliveryStatuses, String boxId);
+
     List<Delivery> findAllByDeliveryStatusAndDelivererIdAndTargetPickupBoxId(DeliveryStatus deliveryStatus, String delivererId, String boxId);
 
     List<Delivery> findAllByTargetPickupBoxIdAndDeliveryStatus(String boxId, DeliveryStatus deliveryStatus);

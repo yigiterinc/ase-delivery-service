@@ -116,7 +116,7 @@ public class DeliveryService {
     public List<Delivery> changeStatusToCollected(final String boxId, String delivererId) {
         final List<String> deliveryIds = deliveryRepository
                 .findAllByDeliveryStatusAndDelivererIdAndTargetPickupBoxId(DeliveryStatus.CREATED, delivererId, boxId)
-                .stream().map(delivery -> delivery.getId()).collect(Collectors.toList());
+                .stream().map(Delivery::getId).collect(Collectors.toList());
 
         var deliveriesToSaveUpdates = new ArrayList<Delivery>();
         for (String deliveryId : deliveryIds) {
@@ -204,7 +204,7 @@ public class DeliveryService {
         assert box != null;
 
         var deliveriesInBox = deliveryRepository
-                .findAllByTargetPickupBoxIdAndDeliveryStatus(box.getId(), DeliveryStatus.DEPOSITED);
+                .findAllByDeliveryStatusInAndTargetPickupBoxId(List.of(DeliveryStatus.CREATED, DeliveryStatus.DEPOSITED, DeliveryStatus.COLLECTED), box.getId());
         var boxIsEmpty = deliveriesInBox.isEmpty();
         var containsDeliveriesOfThisCustomerOnly = deliveriesInBox
                 .stream().allMatch(delivery -> delivery.getCustomerId().equals(customerId));
