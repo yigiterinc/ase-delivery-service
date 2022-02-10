@@ -57,7 +57,7 @@ public class DeliveryController {
         deliveryService.deleteDelivery(deliveryId);
     }
 
-    @PutMapping("/{deliveryIds}/collected/deliverer/{delivererId}")
+    @PutMapping("/{boxId}/collected/deliverer/{delivererId}")
     public List<Delivery> onDeliveriesCollected(@PathVariable final String boxId, @PathVariable final String delivererId) {
         return deliveryService.changeStatusToCollected(boxId, delivererId);
     }
