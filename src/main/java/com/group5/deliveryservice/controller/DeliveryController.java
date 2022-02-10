@@ -42,6 +42,11 @@ public class DeliveryController {
         return ResponseEntity.ok().body(delivery);
     }
 
+    @GetMapping("/deliverer/{delivererId}")
+    public List<Delivery> getAssignedDeliveriesOfDeliverer(@PathVariable String delivererId) {
+        return deliveryService.getAssignedDeliveriesToDeliverer(delivererId);
+    }
+
     @PostMapping
     public Delivery createDelivery(@RequestBody final CreateDeliveryDto createDeliveryDto) {
         return deliveryService.createDelivery(createDeliveryDto);
@@ -52,9 +57,9 @@ public class DeliveryController {
         deliveryService.deleteDelivery(deliveryId);
     }
 
-    @PutMapping("/{deliveryIds}/collected/deliverer/{delivererId}")
-    public List<Delivery> onDeliveriesCollected(@PathVariable final List<String> deliveryIds, @PathVariable final String delivererId) {
-        return deliveryService.changeStatusToCollected(deliveryIds, delivererId);
+    @PutMapping("/box/{boxId}/collected/deliverer/{delivererId}")
+    public List<Delivery> onDeliveriesCollected(@PathVariable final String boxId, @PathVariable final String delivererId) {
+        return deliveryService.changeStatusToCollected(boxId, delivererId);
     }
 
     @PutMapping("/deliverer/{delivererId}/deposited/box/{boxId}")
