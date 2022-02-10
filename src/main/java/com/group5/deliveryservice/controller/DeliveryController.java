@@ -29,6 +29,11 @@ public class DeliveryController {
         return ResponseEntity.ok().body(delivery);
     }
 
+    @PutMapping
+    public Delivery updateDelivery(@RequestBody Delivery delivery) {
+        return deliveryService.updateDelivery(delivery);
+    }
+
     @GetMapping("/customer/{customerId}/status/active")
     public ResponseEntity<List<Delivery>> getActiveDeliveriesOfCustomer(@PathVariable String customerId) {
 

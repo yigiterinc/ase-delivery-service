@@ -50,6 +50,16 @@ public class DeliveryService {
                 () -> new RuntimeException("Delivery not found for id " + deliveryId));
     }
 
+    public Delivery updateDelivery(Delivery delivery) {
+        var userDetails = getUserDetails(delivery.getCustomerId());
+        var delivererDetails = getUserDetails(delivery.getDelivererId());
+        var newBox = this.boxService.findById(delivery.getTargetPickupBox().getId());
+        delivery.setTargetPickupBox(newBox);
+
+        validateDeliveryDetails(delivery, userDetails, delivererDetails);
+        return deliveryRepository.save(delivery);
+    }
+
     public void deleteDelivery(String deliveryId) {
         deliveryRepository.deleteById(deliveryId);
     }
@@ -71,25 +81,10 @@ public class DeliveryService {
     }
 
     public Delivery createDelivery(final CreateDeliveryDto createDeliveryDto) {
-        // Check that the box does not contain deliveries of any other user
-        var boxIsValid = isBoxAvailableForNewDelivery(createDeliveryDto.getCustomerId(), createDeliveryDto.getBoxId());
-        if (!boxIsValid) {
-            throw new BoxAlreadyFullException();
-        }
+        var userDetails = getUserDetails(createDeliveryDto.getCustomerId());
+        var delivererDetails = getUserDetails(createDeliveryDto.getDelivererId());
 
-        // Validate role of user with CAS
-        var userId = createDeliveryDto.getCustomerId();
-        var userDetails = getUserDetails(userId);
-        if (!userHasExpectedRole(userDetails, "CUSTOMER")) {
-            throw new InvalidIdException(String.format("The customer with id %s not found!", userId));
-        }
-
-        var delivererId = createDeliveryDto.getDelivererId();
-        var delivererDetails = getUserDetails(delivererId);
-        // Validate role of deliverer with CAS
-        if (!userHasExpectedRole(delivererDetails, "DELIVERER")) {
-            throw new InvalidIdException(String.format("The deliverer with id %s not found!", delivererId));
-        }
+        validateDeliveryDetails(createDeliveryDto, userDetails, delivererDetails);
 
         var box = boxService.findById(createDeliveryDto.getBoxId());
         var delivery = deliveryRepository.save(
@@ -100,6 +95,31 @@ public class DeliveryService {
         new Thread(() -> mailService.sendEmailTo(userMailAddress, statusChangeMailRequest)).start();
 
         return delivery;
+    }
+
+    private void validateDeliveryDetails(CreateDeliveryDto createDeliveryDto, UserDto userDetails, UserDto delivererDetails) {
+        // Check that the box does not contain deliveries of any other user
+        var boxIsValid = isBoxAvailableForNewDelivery(createDeliveryDto.getCustomerId(), createDeliveryDto.getBoxId());
+        if (!boxIsValid) {
+            throw new BoxAlreadyFullException();
+        }
+
+        // Validate role of user with CAS
+        var userId = createDeliveryDto.getCustomerId();
+        if (!userHasExpectedRole(userDetails, "CUSTOMER")) {
+            throw new InvalidIdException(String.format("The customer with id %s not found!", userId));
+        }
+
+        var delivererId = createDeliveryDto.getDelivererId();
+        // Validate role of deliverer with CAS
+        if (!userHasExpectedRole(delivererDetails, "DELIVERER")) {
+            throw new InvalidIdException(String.format("The deliverer with id %s not found!", delivererId));
+        }
+    }
+
+    private void validateDeliveryDetails(Delivery delivery, UserDto userDetails, UserDto delivererDetails) {
+        var createDeliveryDto = new CreateDeliveryDto(delivery.getTargetPickupBox().getId(), delivery.getCustomerId(), delivery.getDelivererId());
+        validateDeliveryDetails(createDeliveryDto, userDetails, delivererDetails);
     }
 
     private boolean userHasExpectedRole(UserDto userDto, String expectedRole) {
