@@ -7,10 +7,10 @@ CMD echo "Wait for mongodb to be available"
 CMD echo "********************************************************"
 
 CMD echo $MONGODB_STATUS_HOST $MONGODB_STATUS_PORT
-CMD while ! nc -z $MONGODB_STATUS_HOST $MONGODB_STATUS_PORT; do
-  CMD printf 'mongodb is still not available. Retrying...\n'
-  CMD sleep 3
-CMD done
+CMD while ! nc -z $MONGODB_STATUS_HOST $MONGODB_STATUS_PORT; do \
+  printf 'mongodb is still not available. Retrying...\n'; \
+  sleep 3; \
+done
 
 CMD echo "********************************************************"
 CMD echo "Starting delivery-service"
