@@ -7,6 +7,7 @@ import com.group5.deliveryservice.mail.StatusChangeMailRequest;
 import com.group5.deliveryservice.model.Box;
 import com.group5.deliveryservice.model.Delivery;
 import com.group5.deliveryservice.model.DeliveryStatus;
+import com.group5.deliveryservice.model.Role;
 import com.group5.deliveryservice.repository.DeliveryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -260,6 +261,16 @@ public class DeliveryService {
 
     private boolean allDeliveriesAreForTheSameUser(List<Delivery> deliveries) {
         return Collections.frequency(deliveries, deliveries.get(0)) == deliveries.size();
+    }
+
+    public List<Delivery> changeStatusFromBox(final String userId, final String boxId) {
+        var userRole = getUserDetails(userId).getRole();
+        if (userRole.equals(Role.DELIVERER.toString()))
+            return changeStatusToDeposited(userId, boxId);
+        else if (userRole.equals(Role.CUSTOMER.toString()))
+            return changeStatusToDelivered(userId, boxId);
+        else
+            return new LinkedList<>();
     }
 
 }
