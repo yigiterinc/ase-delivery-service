@@ -225,11 +225,11 @@ public class DeliveryService {
 
         var deliveriesInBox = deliveryRepository
                 .findAllByDeliveryStatusInAndTargetPickupBoxId(List.of(DeliveryStatus.CREATED, DeliveryStatus.DEPOSITED, DeliveryStatus.COLLECTED), box.getId());
-        var boxIsEmpty = deliveriesInBox.isEmpty();
+        var boxIsEmptyOrHasSingleDelivery = deliveriesInBox.size() <= 1;
         var containsDeliveriesOfThisCustomerOnly = deliveriesInBox
                 .stream().allMatch(delivery -> delivery.getCustomerId().equals(customerId));
 
-        return boxIsEmpty || containsDeliveriesOfThisCustomerOnly;
+        return boxIsEmptyOrHasSingleDelivery || containsDeliveriesOfThisCustomerOnly;
     }
 
     public List<Delivery> changeStatusToDelivered(final String userId, final String boxId) {
