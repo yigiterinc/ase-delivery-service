@@ -1,6 +1,7 @@
 package com.group5.deliveryservice.service;
 
-import com.group5.deliveryservice.dto.*;
+import com.group5.deliveryservice.dto.CreateDeliveryDto;
+import com.group5.deliveryservice.dto.UserDto;
 import com.group5.deliveryservice.exception.*;
 import com.group5.deliveryservice.mail.MailService;
 import com.group5.deliveryservice.mail.StatusChangeMailRequest;
@@ -13,9 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -48,7 +46,7 @@ public class DeliveryService {
 
     public Delivery findDeliveryById(final String deliveryId) {
         return deliveryRepository.findById(deliveryId).orElseThrow(
-                () -> new RuntimeException("Delivery not found for id " + deliveryId));
+                () -> new NotFoundException("Delivery not found for id " + deliveryId));
     }
 
     public Delivery updateDelivery(Delivery delivery) {
@@ -93,7 +91,7 @@ public class DeliveryService {
 
         var userMailAddress = userDetails.getEmail();
         var statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.CREATED, delivery.getId());
-        new Thread(() -> mailService.sendEmailTo(userMailAddress, statusChangeMailRequest)).start();
+        sendMailInNewThread(userMailAddress, statusChangeMailRequest);
 
         return delivery;
     }
@@ -211,9 +209,13 @@ public class DeliveryService {
                 .map(Delivery::getId)
                 .collect(Collectors.toList()));
 
-        new Thread(() -> mailService.sendEmailTo(userDetails.getEmail(), statusChangeMailRequest)).start();
+        sendMailInNewThread(userDetails.getEmail(), statusChangeMailRequest);
 
         return deliveryRepository.saveAll(deliveries);
+    }
+
+    private void sendMailInNewThread(String userDetails, StatusChangeMailRequest statusChangeMailRequest) {
+        new Thread(() -> mailService.sendEmailTo(userDetails, statusChangeMailRequest)).start();
     }
 
     public boolean isBoxAvailableForNewDelivery(final String customerId, final String boxId) {
@@ -226,7 +228,9 @@ public class DeliveryService {
 
         var deliveriesInBox = deliveryRepository
                 .findAllByDeliveryStatusInAndTargetPickupBoxId(List.of(DeliveryStatus.CREATED, DeliveryStatus.DEPOSITED, DeliveryStatus.COLLECTED), box.getId());
+
         var boxIsEmptyOrHasSingleDelivery = deliveriesInBox.size() <= 1;
+
         var containsDeliveriesOfThisCustomerOnly = deliveriesInBox
                 .stream().allMatch(delivery -> delivery.getCustomerId().equals(customerId));
 
@@ -253,7 +257,7 @@ public class DeliveryService {
             delivery.setDeliveryStatus(DeliveryStatus.DELIVERED);
             deliveriesToUpdate.add(delivery);
             StatusChangeMailRequest statusChangeMailRequest = new StatusChangeMailRequest(DeliveryStatus.DELIVERED);
-            new Thread(() -> mailService.sendEmailTo(userDetails.getEmail(), statusChangeMailRequest)).start();
+            sendMailInNewThread(userDetails.getEmail(), statusChangeMailRequest);
         }
 
         return deliveryRepository.saveAll(deliveriesToUpdate);
